@@ -15,7 +15,7 @@ public class RedisDemo {
 
     @Test
     public void demo_redis() throws IOException {
-        Jedis jedis = new Jedis(redisResource.getHost(), redisResource.getPort());
+        Jedis jedis = new Jedis(redisResource.getHost(), redisResource.getPort(6379));
 
         assertEquals("PONG", jedis.ping());
     }

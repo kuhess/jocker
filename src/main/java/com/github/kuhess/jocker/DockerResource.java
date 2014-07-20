@@ -2,30 +2,33 @@ package com.github.kuhess.jocker;
 
 import com.github.dockerjava.client.DockerClient;
 import com.github.dockerjava.client.NotFoundException;
+import com.github.dockerjava.client.command.CreateContainerCmd;
 import com.github.dockerjava.client.model.*;
 import com.sun.jersey.api.client.ClientResponse;
 import org.junit.rules.ExternalResource;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 public class DockerResource extends ExternalResource {
 
     private final String image;
-    private final int resourcePort;
     private final ResourceChecker checker;
 
     private final DockerClient dockerClient;
     private final String prefix = "jocker";
 
-    private int port;
-    private String host;
+    private String[] env = new String[0];
 
-    public DockerResource(String image, int port, ResourceChecker checker) {
+    private String host;
+    private Map<Integer, Integer> ports;
+
+    public DockerResource(String image) {
+        this(image, ResourceChecker.alwaysTrue());
+    }
+
+    public DockerResource(String image, ResourceChecker checker) {
         this.image = image;
-        this.resourcePort = port;
         this.checker = checker;
 
         dockerClient = new DockerClient("http://localhost:2375");
@@ -34,7 +37,7 @@ public class DockerResource extends ExternalResource {
         } catch (NotFoundException e) {
             ClientResponse resp = dockerClient.pullImageCmd(this.image).exec();
             // Wait for stream
-            String message = null;
+            String message;
             try {
                 message = DockerClient.asString(resp);
             } catch (IOException e1) {
@@ -48,10 +51,14 @@ public class DockerResource extends ExternalResource {
 
     @Override
     protected void before() throws Throwable {
-        ContainerCreateResponse container = dockerClient.createContainerCmd(image)
-                .withName(prefix + "-" + UUID.randomUUID())
-                .withExposedPorts(ExposedPort.tcp(resourcePort))
-                .exec();
+        CreateContainerCmd containerCmd = dockerClient.createContainerCmd(image)
+                .withName(prefix + "-" + UUID.randomUUID());
+
+        if (env.length > 0) {
+            containerCmd.withEnv(env);
+        }
+
+        ContainerCreateResponse container = containerCmd.exec();
 
         // Clean previous zombies
         // List<Container> containers = dockerClient.listContainersCmd()
@@ -68,11 +75,16 @@ public class DockerResource extends ExternalResource {
 
         // Retrieve its host and its port
         ContainerInspectResponse inspection = dockerClient.inspectContainerCmd(container.getId()).exec();
-        Ports.Binding portBinding = inspection.getNetworkSettings().getPorts().getBindings().get(ExposedPort.tcp(resourcePort));
-        this.port = portBinding.getHostPort();
-        this.host = portBinding.getHostIp();
 
-        this.checker.waitForAvailability();
+        Map<ExposedPort, Ports.Binding> bindings = inspection.getNetworkSettings().getPorts().getBindings();
+        ports = new HashMap<>();
+        for (Map.Entry<ExposedPort, Ports.Binding> binding : bindings.entrySet()) {
+            ports.put(binding.getKey().getPort(), binding.getValue().getHostPort());
+        }
+
+        this.host = "0.0.0.0";
+
+        this.checker.waitForAvailability(this.host, this.ports);
     }
 
     @Override
@@ -98,11 +110,16 @@ public class DockerResource extends ExternalResource {
         return zombies;
     }
 
-    public int getPort() {
-        return this.port;
+    public int getPort(int port) {
+        return this.ports.get(port);
     }
 
     public String getHost() {
         return this.host;
+    }
+
+    public DockerResource withEnv(String... env) {
+        this.env = env;
+        return this;
     }
 }

@@ -11,6 +11,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
@@ -19,22 +20,18 @@ public class ElasticsearchDemo {
     @Rule
     public DockerResource elasticsearchResource = new DockerResource(
             "barnybug/elasticsearch:1.2.1",
-            9300,
             new ResourceChecker() {
-
                 @Override
-                protected boolean isAvailable() throws Exception {
+                protected boolean isAvailable(String host, Map<Integer, Integer> ports) throws Exception {
                     Client client = new TransportClient().addTransportAddress(
                             new InetSocketTransportAddress(
-                                    elasticsearchResource.getHost(),
-                                    elasticsearchResource.getPort()
+                                    host,
+                                    ports.get(9300)
                             )
                     );
 
                     ClusterHealthResponse response = client.admin().cluster()
                             .prepareHealth()
-                            .setWaitForYellowStatus()
-                            .setTimeout(TimeValue.timeValueSeconds(10))
                             .execute()
                             .actionGet();
 
@@ -48,7 +45,7 @@ public class ElasticsearchDemo {
         Client client = new TransportClient().addTransportAddress(
                 new InetSocketTransportAddress(
                         elasticsearchResource.getHost(),
-                        elasticsearchResource.getPort()
+                        elasticsearchResource.getPort(9300)
                 )
         );
 
