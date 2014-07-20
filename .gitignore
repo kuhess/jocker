@@ -6,3 +6,6 @@ build/
 classes/
 .idea/
 *.iml
+
+# Vagrant
+.vagrant/
