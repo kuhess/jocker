@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.github.docker-java:docker-java:0.9.1-SNAPSHOT'
+    compile 'com.github.docker-java:docker-java:0.9.1'
     compile 'junit:junit:4.11'
     compile 'com.jayway.awaitility:awaitility:1.6.1'
 
