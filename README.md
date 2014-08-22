@@ -6,6 +6,34 @@ Check out the first [examples](src/test/java/com/github/kuhess/jocker).
 
 ## Usage
 
+### Example with Redis
+
+```java
+// Create and start the resource
+JockerResource resource = new JockerResource(
+    "redis:2.8.13",
+    new ResourceChecker() {
+        @Override
+        protected boolean isAvailable(String host, Map<Integer, Integer> ports) throws Exception {
+            Jedis jedis = new Jedis(host, ports.get(6379));
+            return "PONG".equals(jedis.ping());
+        }
+    }
+);
+resource.start();
+
+// Use the container :)
+String redisHost = resource.getHost();
+int redisPort = resource.getPortOf(6379);
+Jedis jedis = new Jedis(redisHost, redisPort);
+/* ... */
+
+// Stop the resource
+resource.stop();
+```
+
+## Development
+
 ### With Vagrant
 
 **Requirements**:
